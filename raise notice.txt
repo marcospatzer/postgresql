@@ -1,0 +1,3 @@
+raise notice '1 = % ',(select cast(timeofday() as timestamp));
+
+raise notice '2 = % ',(select cast(timeofday() as timestamp));
