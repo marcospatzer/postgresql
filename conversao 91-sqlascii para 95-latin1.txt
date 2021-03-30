@@ -1,0 +1,50 @@
+
+
+
+9.1 -> 9.5 (TROCANDO DE SQLASCII para LATIN1)
+=============================================
+
+
+
+1o) backup no banco do cliente via pgadmin no 9.1 (backup normal)
+    CUSTOM
+    SQLASCII
+    postgres
+
+2o) renomear a database no 9.1 para database_91
+
+
+3o) copiar o backup para pasta C:\dev-fire\conversao 95
+
+
+4o) criar database "bkp_xxxx91" via pgadmin e fazer restore do banco do cliente no nosso 201/5432
+
+
+
+
+4o) login via bitwise no 192.168.10.21
+
+comandos no linux:
+
+sudo su
+
+root: su - postgres
+
+cd /samba/desenvolvimento/conversao91-95
+
+postgres@srv-smb:/samba/desenvolvimento/conversao91-95$
+
+pg_dump -U postgres -h localhost -p 5432 -v --format=p --encoding=latin1 --file=cliente.sql bkp_cliente_conversao95
+createdb -U postgres -h localhost -p 5432 -O postgres -E latin1 -T template0 -l C -e cliente_91_latin1
+psql -v -d cliente_91_latin1 -U postgres -h localhost -p 5432 < cliente.sql
+
+
+
+
+6o) via pgadmin 9.5: fazere o backup da database cliente_novo
+    CUSTOM
+    LATIN1
+    postgres
+
+7o) copiar o arquivo para o servidor do cliente e fazer o restore via pgadmin 9.5
+

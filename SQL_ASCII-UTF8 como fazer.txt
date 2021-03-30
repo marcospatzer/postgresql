@@ -1,0 +1,8 @@
+1) install RECODE no Linux 
+
+$ sudo apt-get install recode
+
+
+2) http://blog.e-shell.org/134
+
+$ recode SQL_ASCII..UTF-8 file.txt

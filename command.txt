@@ -1,0 +1,183 @@
+
+
+
+SHOW config_file;
+
+
+SELECT name, setting FROM pg_settings;
+
+--Exibir todos os parâmetros de runtime
+show all;
+
+-- numero de registro no banco
+SELECT sum(C.reltuples)::int
+  FROM pg_class C
+
+
+-- Tamanho por TableSpace
+SELECT spcname, pg_size_pretty(pg_tablespace_size (spcname))
+  FROM pg_tableSpace;
+
+
+-- Tamanho por Banco
+SELECT datname, pg_size_pretty(pg_database_size(datname))
+  FROM pg_database;
+
+
+-- lista de tabelas:
+select * 
+  from pg_tables 
+ where tableowner = 'postgres' 
+   and schemaname = 'public';
+
+
+
+CREATE DATABASE dev_prime
+  WITH OWNER = prime
+       ENCODING = 'UTF8'
+       TABLESPACE = pg_default
+       LC_COLLATE = 'C'
+       LC_CTYPE = 'C'
+       CONNECTION LIMIT = -1;
+
+
+ALTER DATABASE dev_sistema
+  SET bytea_output = 'escape';
+
+ALTER DATABASE dev_sistema
+  SET standard_conforming_strings = 'false';
+
+ALTER DATABASE dev_sistema
+  SET TimeZone = 'GMT+3';
+
+ALTER DATABASE dev_sistema
+  SET DateStyle = 'iso, dmy';
+
+
+
+-- objetos duplicados:
+select p.proname, u.usename, count(*)
+  from pg_proc p, pg_user u
+ where u.usesysid = p.proowner
+   and u.usename  <> 'postgres'
+group by p.proname, u.usename having count(*) > 1;
+
+
+--Mostra estatística de uso das tabelas e manutenção:
+select * from pg_stat_all_tables;
+
+
+-- show the PIDs and current queries of all server processes:
+SELECT pg_stat_get_backend_pid(s.backendid) AS procpid,
+pg_stat_get_backend_activity(s.backendid) AS current_query
+FROM (SELECT pg_stat_get_backend_idset() AS backendid) AS s;
+
+
+
+-- para fazer o vacuum tabela por tabela
+select 'VACUUM ANALYZE '||pg_tables.tablename||';'  
+  from pg_tables 
+order by tablename;
+
+
+-- Renomear Tabela
+ALTER TABLE tabela RENAME TO nomenovo;
+ALTER TABLE produtos RENAME TO equipamentos;
+
+
+-- Retornar o número de usuários conectados
+select count(*) from pg_stat_activity
+
+
+select proname,prosrc from pg_proc where prosrc like '%NOME_DA_TABELA%';
+
+
+
+SELECT pg_namespace.nspname, pg_class.relname, pg_class.reltuples,
+ pg_class.relpages, rowwidths.avgwidth,
+        ceil(pg_class.reltuples * rowwidths.avgwidth::double precision /
+ current_setting('block_size'::text)::double precision) AS expectedpages,
+        pg_class.relpages::double precision / ceil(pg_class.reltuples *
+ rowwidths.avgwidth::double precision /
+ current_setting('block_size'::text)::double precision) AS bloat,
+        ceil((pg_class.relpages::double precision *
+ current_setting('block_size'::text)::double precision -
+ ceil(pg_class.reltuples * rowwidths.avgwidth::double precision)) /
+ 1024::double precision) AS wastedspace
+   FROM ( SELECT pg_statistic.starelid, sum(pg_statistic.stawidth) AS
+ avgwidth
+            FROM pg_statistic
+           GROUP BY pg_statistic.starelid) rowwidths
+    JOIN pg_class ON rowwidths.starelid = pg_class.oid
+    JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+   WHERE pg_class.relpages > 1;
+
+
+-- find table
+SELECT *
+FROM information_schema.tables
+WHERE table_name = ‘foobar’;
+
+
+-- Update em uma chave primária sem causar duplicação de chave
+UPDATE teste SET coluna1 = t_aux.coluna1+1
+FROM (
+SELECT coluna1
+FROM teste
+ORDER BY coluna1 DESC
+) t_aux
+WHERE teste.coluna1 = t_aux.coluna1;
+
+
+
+-- Como Localizar e Deletar registros duplicados: 
+
+--1.Select para localizar duplicados
+select campo,campo1,count(*)
+from tabela group by campo,campo1 having count(*) > 1
+
+--2.Deletar duplicados:
+delete from tab p1
+where rowid < (select max(rowid)
+from tab1 p2
+where p1.primary_key = p2.primary_key);
+
+
+
+
+-- Inserir Número Aleatório em Tabela
+
+CREATE TABLE page (
+id SERIAL PRIMARY KEY,
+about TEXT NULL,
+);
+
+ALTER TABLE page ADD myrand NUMERIC NOT NULL DEFAULT RANDOM();
+
+UPDATE page SET myrand = DEFAULT;
+
+SELECT id FROM page WHERE myrand >= RANDOM() ORDER BY myrand LIMIT 1;
+
+
+
+
+-- disable/enable trigger:
+ALTER TABLE [NOME DA TABELA]
+DISABLE TRIGGER [NOME DA TRIGGER]
+Ou
+ALTER TABLE [NOME DA TABELA]
+DISABLE TRIGGER ALL
+
+
+
+show client_encoding;
+show server_encoding;
+set client_encoding to 'utf-8';
+show client_encoding;
+
+
+
+-- Fazer update em SEQUENCE do banco de dados:
+select setval('seq_solforne', (select max(a.nnumeroforne)+1 from solforne a))
+
+

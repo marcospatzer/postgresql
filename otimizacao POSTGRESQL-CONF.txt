@@ -1,0 +1,101 @@
+
+
+ - VACUUM: Deve ser executado frequentemente para otimizar o banco de dados. 
+           (Recomendado utiliza-lo pelo menos todas as noites) PS: pode ser utilizado enquanto o banco está em uso sem problemas!
+
+ - VACUUM + ANALYZE: Deve ser utilizado após uma grande quantidade de inserções/exclusões de registros no banco.
+                     (O analyze utiliza apenas bloqueio de leitura. ou seja, as consultas ao banco continuam funcionando.)
+
+ - VACUUM FULL: Deve ser usado em casos especiais. (Exe: quando é feito a exclusão da maioria dos dados de uma tabela ou um expurgo no banco.) 
+            PS: este requer acesso exclusivo no banco.
+
+ - FREEZE: É uma funcionalidade especial que faz com que os dados sejam congelados no banco.
+           (É útil apenas em casos de bancos somente leitura ou com pouca alteração)
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+1o passo) alterar postgresql.conf:
+----------------------------------
+shared_preload_libraries = 'pg_stat_statements'
+
+
+2o passo) reiniciar o banco
+---------------------------
+
+
+3o passo) criar a extensao
+---------------------------
+CREATE EXTENSION pg_stat_statements;
+
+
+4o passo) monitorar
+-------------------
+SELECT query, calls, total_time, rows, 100.0 * shared_blks_hit /
+               nullif(shared_blks_hit + shared_blks_read, 0) AS hit_percent
+          FROM pg_stat_statements ORDER BY total_time DESC LIMIT 5;
+
+
+5o passo) para resetar
+----------------------
+SELECT pg_stat_statements_reset();
+
+
+
+6o passo) documentacao
+----------------------
+https://www.postgresql.org/docs/9.6/static/pgstatstatements.html
+
+
+
+
+SELECT pg_postmaster_start_time();
+
+
+
+
+
+
+SHOW config_file;
+/etc/system32/dados/pgsql/data/postgresql.conf
+C:\Program Files\PostgreSQL\9.1\data\postgresql.conf
+
+
+
+SHOW effective_cache_size
+---> atual...: 128MB
+---> desejado: 2GB
+
+SHOW shared_buffers 
+---> atual...: 320MB
+---> desejado: 1GB
+
+SHOW work_mem
+---> atual...: 1MB
+---> desejado: 16MB
+
+SHOW maintenance_work_mem
+---> atual...: 16MB
+---> desejado: 256MB
+
+SHOW wal_buffers
+---> atual...: 10MB
+---> desejado: 16MB
+
+SHOW random_page_cost
+4
+
+-----------------------------------------------------------------------
+
+
+ALTER SYSTEM SET effective_cache_size= 2GB;
+ALTER SYSTEM SET shared_buffers = 1GB;
+ALTER SYSTEM SET work_mem = 48MB;
+ALTER SYSTEM SET maintenance_work_mem = 256MB;
+ALTER SYSTEM SET wal_buffers = 8MB;
+
+
+
+ALTER DATABASE db_sistema SET max_connections = 200;

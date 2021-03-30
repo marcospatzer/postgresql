@@ -1,0 +1,1 @@
+pg_restore –h localhost –p 5432 –U "postgres" –d "ibitrans" –t solclien "C:\AssistRestore\BKP_IBITRANS_19-05-2016_0804.backup"
