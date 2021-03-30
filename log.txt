@@ -1,0 +1,132 @@
+﻿CREATE TABLE public.tblog (
+  id BIGSERIAL,
+  nome_campo VARCHAR(60),
+  nome_tabela VARCHAR(60),
+  valor_antigo TEXT,
+  valor_novo TEXT,
+  operacao VARCHAR(20),
+  usuario VARCHAR(60),
+  pktabela BIGINT,
+  datahora TIMESTAMP(0) WITHOUT TIME ZONE,
+  usuario_maquina VARCHAR(100),
+  nome_maquina VARCHAR(100),
+  ip_maquina VARCHAR(100),
+  CONSTRAINT tblog_pkey PRIMARY KEY(id)
+) 
+WITH (oids = false);
+
+COMMENT ON COLUMN public.tblog.usuario_maquina
+IS 'Usuario do Computador';
+
+COMMENT ON COLUMN public.tblog.nome_maquina
+IS 'Nome do Computador';
+
+COMMENT ON COLUMN public.tblog.ip_maquina
+IS 'IP do Computador';
+
+CREATE INDEX tblog_idx ON public.tblog
+  USING btree (nome_tabela COLLATE pg_catalog."default", pktabela, nome_campo COLLATE pg_catalog."default");
+
+CREATE INDEX tblog_idx_datahora ON public.tblog
+  USING btree (((datahora)::date));
+
+CREATE INDEX tblog_idx_nometabela ON public.tblog
+  USING btree (nome_tabela COLLATE pg_catalog."default");
+
+CREATE INDEX tblog_idx_pktabela ON public.tblog
+  USING btree (pktabela);
+
+ALTER TABLE public.tblog
+  OWNER TO postgres;
+
+
+
+
+
+-- PRC DA TRIGGER DE LOG:
+CREATE OR REPLACE FUNCTION public.log (
+)
+RETURNS trigger AS
+$body$
+DECLARE  
+    ri RECORD;
+    campo_novo TEXT;
+    campo_antigo text;
+    v_datahora TIMESTAMP;
+    v_usuario VARCHAR(60);
+    v_nome_pc VARCHAR;
+    v_usuario_pc VARCHAR;
+    v_ip VARCHAR;
+    
+    v_idfk bigint;
+
+c_usuario cursor is
+select a.usuario, a.nome_pc, a.usuario_pc, c.client_addr
+  from tmpuser a, solusuar b, prc_pg_stat_activity() c
+ where a.procpid = c.procpid
+   and b.cnomeusuar = a.usuario;
+
+BEGIN
+
+  v_datahora := timeofday();
+
+  open  c_usuario;
+  fetch c_usuario into v_usuario, v_nome_pc, v_usuario_pc, v_ip;
+  close c_usuario;
+
+  
+  if (TG_OP = 'DELETE') then  
+      Execute
+        ('SELECT (' || quote_literal(OLD) || '::' || TG_RELID::regclass || ').' || TG_ARGV[0] || '::text')
+        into v_idfk;
+      insert into tblog (nome_campo, nome_tabela, valor_antigo, valor_novo, operacao, usuario, pktabela, datahora, nome_maquina, usuario_maquina, ip_maquina)
+               values ('apagado', quote_ident(TG_relname), 'apagado', 'apagado', TG_OP, v_usuario, v_idfk, v_datahora, v_nome_pc, v_usuario_pc, v_ip);
+      return OLD;
+    end if;
+  end if;           
+
+  IF ((TG_OP = 'UPDATE') OR (TG_OP = 'INSERT')) THEN 
+    FOR ri IN (SELECT column_name
+                 FROM information_schema.columns
+                WHERE table_schema = quote_ident(TG_TABLE_SCHEMA)
+                  AND table_name = quote_ident(TG_TABLE_NAME)
+                  AND NOT column_name like 'nflag%'
+                ORDER BY ordinal_position)
+    LOOP
+      IF (TG_OP = 'UPDATE') THEN
+        Execute ('SELECT (' || quote_literal(OLD) || '::' || TG_RELID::regclass || ').' || ri.column_name || '::text') into campo_antigo;
+      ELSE
+        campo_antigo := NULL;
+      END IF;
+      
+      Execute ('SELECT (' || quote_literal(NEW) || '::' || TG_RELID::regclass || ').' || ri.column_name || '::text') into campo_novo;
+
+      if COALESCE(campo_novo,'') <> COALESCE(campo_antigo,'') then
+        Execute
+          ('SELECT (' || quote_literal(NEW) || '::' || TG_RELID::regclass || ').' || TG_ARGV[0] || '::text')
+          into v_idfk;  
+        insert into tblog (nome_campo, nome_tabela, valor_antigo, valor_novo, operacao, usuario, pktabela, datahora, nome_maquina, usuario_maquina, ip_maquina)
+                 values (ri.column_name, quote_ident(TG_relname), campo_antigo, campo_novo, tg_op, v_usuario, v_idfk, v_datahora, v_nome_pc, v_usuario_pc, v_ip);
+      end if;
+    END LOOP;
+  end if;
+
+  RETURN NEW;
+END;
+$body$
+LANGUAGE 'plpgsql'
+VOLATILE
+CALLED ON NULL INPUT
+SECURITY INVOKER
+COST 100;
+
+
+
+-- TRIGGER NA TABELA:
+
+CREATE TRIGGER tri_solempre_log
+  AFTER INSERT OR UPDATE OR DELETE 
+  ON public.solempre
+  
+FOR EACH ROW 
+  EXECUTE PROCEDURE public.log('nnumeroempre');
