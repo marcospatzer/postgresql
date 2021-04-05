@@ -63,7 +63,7 @@ BEGIN
     if v_Limpa in ('º') then
        v_Limpa := '';
     end if;
-    if v_Limpa in ('-') then
+    if v_Limpa in ('&') then
        v_Limpa := '';
     end if;
 
@@ -77,6 +77,3 @@ VOLATILE
 CALLED ON NULL INPUT
 SECURITY INVOKER
 COST 100;
-
-ALTER FUNCTION public.prc_retira_caracter_acentuacao (p_param varchar)
-  OWNER TO postgres;
