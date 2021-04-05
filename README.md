@@ -43,21 +43,30 @@ SELECT
   current_setting('password_encryption') AS "password_encryption";
 
 
--- Analyze info for tables with rows modified since last analyze
+-- Vacuum and Analyze info
 SELECT
   schemaname,
   relname,
-  -- not available on PostgreSQL <= 9.3
+  n_live_tup,
+  n_dead_tup,
+  n_dead_tup / GREATEST(n_live_tup + n_dead_tup, 1)::float * 100 AS dead_percentage,
   n_mod_since_analyze,
+  last_vacuum,
+  last_autovacuum,
   last_analyze,
   last_autoanalyze,
-  -- not available on PostgreSQL <= 9.0
+  vacuum_count,
+  autovacuum_count,
   analyze_count,
   autoanalyze_count
-FROM pg_stat_user_tables
+FROM
+  pg_stat_user_tables
 ORDER BY
+  n_dead_tup DESC,
   n_mod_since_analyze DESC,
+  last_vacuum DESC,
   last_analyze DESC,
+  last_autovacuum DESC,
   last_autoanalyze DESC;
     
 ```
@@ -84,6 +93,24 @@ ORDER
   BY pg_database_size(datname) DESC;
 ```
 
+# Running queries
+```
+SELECT
+  pid,
+  age(clock_timestamp(), query_start),
+  usename,
+  application_name,
+  query
+FROM
+  pg_stat_activity
+WHERE
+  state != 'idle'
+    AND
+  query NOT ILIKE '%pg_stat_activity%'
+ORDER BY
+  query_start DESC;
+```
+  
 
 # Lists queries blocked along with the pids of those holding the locks blocking them
 -- Requires PostgreSQL >= 9.6
@@ -110,6 +137,168 @@ SELECT
               AS ratio
 FROM
   pg_statio_user_indexes;
+```
+
+
+# Locks
+```
+SELECT
+  t.schemaname,
+  t.relname,
+  -- l.database, -- id number is less useful, take schemaname from join instead
+  l.locktype,
+  page,
+  virtualtransaction,
+  pid,
+  mode,
+  granted
+FROM
+  pg_locks l,
+  --pg_stat_user_tables t
+  pg_stat_all_tables t
+WHERE
+  l.relation = t.relid
+ORDER BY
+  relation ASC;
+
+SELECT
+  relation::regclass AS relation_regclass,
+  *
+FROM
+  pg_locks
+WHERE
+  NOT granted;
+```
+
+
+# Locks Blocked
+```
+SELECT
+  blocked_locks.pid         AS blocked_pid,
+  blocked_activity.usename  AS blocked_user,
+  blocking_locks.pid        AS blocking_pid,
+  blocking_activity.usename AS blocking_user,
+  blocked_activity.query    AS blocked_statement,
+  blocking_activity.query   AS current_statement_in_blocking_process
+FROM
+  pg_catalog.pg_locks AS blocked_locks
+JOIN
+  pg_catalog.pg_stat_activity AS blocked_activity
+ON
+  blocked_activity.pid = blocked_locks.pid
+JOIN
+  pg_catalog.pg_locks AS blocking_locks
+ON
+  blocking_locks.locktype = blocked_locks.locktype
+  AND blocking_locks.database       IS NOT DISTINCT FROM blocked_locks.database
+  AND blocking_locks.relation       IS NOT DISTINCT FROM blocked_locks.relation
+  AND blocking_locks.page           IS NOT DISTINCT FROM blocked_locks.page
+  AND blocking_locks.tuple          IS NOT DISTINCT FROM blocked_locks.tuple
+  AND blocking_locks.virtualxid     IS NOT DISTINCT FROM blocked_locks.virtualxid
+  AND blocking_locks.transactionid  IS NOT DISTINCT FROM blocked_locks.transactionid
+  AND blocking_locks.classid        IS NOT DISTINCT FROM blocked_locks.classid
+  AND blocking_locks.objid          IS NOT DISTINCT FROM blocked_locks.objid
+  AND blocking_locks.objsubid       IS NOT DISTINCT FROM blocked_locks.objsubid
+  AND blocking_locks.pid != blocked_locks.pid
+JOIN
+  pg_catalog.pg_stat_activity blocking_activity
+ON
+  blocking_activity.pid = blocking_locks.pid
+WHERE
+  NOT blocked_locks.granted;
+```
+  
+# SLOW: queries currently executing that have taken over 30 secs
+```
+-- Requires 9.2 <= PostgreSQL <= 9.5
+SELECT
+  now() - query_start as "runtime",
+  usename,
+  datname,
+  -- not available on PostgreSQL < 9.6
+  -- wait_event,
+  waiting,
+  -- not available on PostgreSQL < 9.2
+  state,
+  query
+FROM
+  pg_stat_activity
+WHERE
+  -- can't use 'runtime' here
+  now() - query_start > '30 seconds'::interval
+ORDER BY
+  runtime DESC;
+  
+-- PostgreSQL 9.6+, 10x, 11.x, 12.x, 13.0  
+SELECT
+  now() - query_start as "runtime",
+  usename,
+  datname,
+  -- not available on PostgreSQL < 9.6
+  wait_event,
+  -- not available on PostgreSQL < 9.2
+  state,
+  -- current_query on PostgreSQL < 9.2
+  query
+FROM
+  pg_stat_activity
+WHERE
+  -- can't use 'runtime' here
+  now() - query_start > '30 seconds'::interval
+ORDER BY
+  runtime DESC;
+```
+
+# locks with query and age
+```
+SELECT
+  a.datname,
+  l.relation::regclass,
+  l.transactionid,
+  l.mode,
+  l.GRANTED,
+  a.usename,
+  a.query,
+  a.query_start,
+  age(now(), a.query_start) AS "age",
+  a.pid
+FROM
+  pg_stat_activity a
+JOIN
+  pg_locks l
+ON
+  l.pid = a.pid
+ORDER BY
+  a.query_start;
+```
+
+
+# Queries cache-hit ratio from pg_stat_statements
+```
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+SELECT
+  calls,
+  rows,
+  shared_blks_hit,
+  shared_blks_read,
+  -- using greatest() to avoid divide by zero error, by ensuring we divide by at least 1
+    shared_blks_hit /
+    GREATEST(shared_blks_hit + shared_blks_read, 1)::float AS shared_blks_hit_ratio,
+    -- casting divisor to float to avoid getting integer maths returning zeros instead of fractional ratios
+  local_blks_hit,
+  local_blks_read,
+    local_blks_hit /
+    GREATEST(local_blks_hit + local_blks_read, 1)::float AS local_blks_hit_ratio,
+  query
+FROM
+  pg_stat_statements
+--ORDER BY rows DESC
+ORDER BY
+  shared_blks_hit_ratio DESC,
+  local_blks_hit_ratio DESC,
+  rows DESC
+LIMIT 100;
 ```
 
 # Script
