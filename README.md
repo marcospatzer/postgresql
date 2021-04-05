@@ -10,7 +10,29 @@ https://github.com/pgexperts
 psql --host=$IP --port=$PORTA --username=$USUARIO --dbname=$NOME_BASE --no-password --command="$COMANDO_SQL"
 ```
 
-
+# Script
+```
+DO
+$$
+declare
+x record;
+BEGIN
+  delete from tb_cdbar;
+  For x in (select a.id_produ, 
+                   replace(a.codigo_produ,'.','') as codigo
+              from tb_produ a
+             where a.cmatven = 'R') 
+  loop
+    insert Into tb_cdbar (nnumerocdbar, 
+                          nnumeroprodu, 
+                          nquanticdbar)
+                  values (cast(x.codigo as bigint), 
+                          x.id_produ, 
+                          1); 
+  End Loop; 
+END
+$$;
+```
 
 # Avaliar performance de sql postgres
 
