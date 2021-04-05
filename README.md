@@ -1,5 +1,5 @@
 
-## Executar comando sql pelo terminal
+## Terminal
 ```
 psql --host=$IP --port=$PORTA --username=$USUARIO --dbname=$NOME_BASE --no-password --command="$COMANDO_SQL"
 ```
@@ -242,7 +242,7 @@ ORDER BY
   runtime DESC;
 ```
 
-# locks with query and age
+## locks with query and age
 ```
 SELECT
   a.datname,
@@ -266,7 +266,7 @@ ORDER BY
 ```
 
 
-# Queries cache-hit ratio from pg_stat_statements
+## Queries cache-hit ratio from pg_stat_statements
 ```
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
@@ -294,7 +294,7 @@ ORDER BY
 LIMIT 100;
 ```
 
-# Script
+## Script
 ```
 DO
 $$
@@ -318,7 +318,7 @@ END
 $$;
 ```
 
-# EXPLAIN
+## EXPLAIN
 
 O PostgreSQL dá um relatório completo da execução da query.
 Para vê-lo execute a consulta assim:
