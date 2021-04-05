@@ -1,9 +1,3 @@
-# postgresql
-
-https://github.com/pgexperts
-
-
-
 
 # Executar comando sql pelo terminal
 ```
@@ -72,7 +66,7 @@ ORDER BY
 ```
   
   
-# Exibir todos os parâmetros de runtime
+# show parameters
 
 ```
 SHOW config_file;
@@ -82,7 +76,7 @@ SELECT name, setting FROM pg_settings;
 show all;
 ```
 
-# PostgreSQL databases by size descending
+# databases by size descending
 ```
 SELECT
   datname,
@@ -113,8 +107,8 @@ ORDER BY
   
 
 # Lists queries blocked along with the pids of those holding the locks blocking them
--- Requires PostgreSQL >= 9.6
 ```
+-- Requires PostgreSQL >= 9.6
 SELECT
   pid,
   usename,
@@ -126,8 +120,7 @@ WHERE
   cardinality(pg_blocking_pids(pid)) > 0;
 ```
 
-# Indexes Cache-hit Ratio
--- should be closer to 1, eg. 0.99
+# Indexes Cache-hit Ratio (should be closer to 1, eg. 0.99)
 ```
 SELECT
   SUM(idx_blks_read) AS idx_blks_read,
@@ -390,11 +383,11 @@ A partir dai, é sua necessidade e capacidade de construção de functions para 
 
 
 
+https://github.com/pgexperts
 
 https://pgbadger.darold.net/
 
 https://pgtune.leopard.in.ua/#/
-
 
 https://github.com/jfcoz/postgresqltuner
 
