@@ -395,3 +395,7 @@ https://pgbadger.darold.net/
 
 https://pgtune.leopard.in.ua/#/
 
+
+https://github.com/jfcoz/postgresqltuner
+
+
