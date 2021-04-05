@@ -48,7 +48,7 @@ Basicamente: Usar sql e concatenação de texto para construir outras sqls, e en
 O exemplo abaixo fala por si só.
 Criação de uma função simples:
 
-COPY
+```
 CREATE OR REPLACE FUNCTION qtd(nomeTabela text) RETURNS integer LANGUAGE plpgsql AS $$
 DECLARE
     resultado integer;
@@ -56,18 +56,20 @@ BEGIN
     EXECUTE 'SELECT count(1) FROM ' || nomeTabela INTO resultado;
     RETURN resultado;
 END; $$;
+
 Uso da função:
 
-COPY
 SELECT qtd('tabela_estoque');
 SELECT qtd('tabela_produtos');
+
 Outro uso exemplo:
 
-COPY
+
 CREATE OR REPLACE FUNCTION dropConstraint(nomeTabela text, nomeConstraint text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
     EXECUTE 'ALTER TABLE ' || nomeTabela || ' DROP CONSTRAINT ' || nomeConstraint;
 END; $$;
+```
 A partir dai, é sua necessidade e capacidade de construção de functions para fazer o que você precisa.
 
 
