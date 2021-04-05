@@ -2,7 +2,34 @@
 
 https://github.com/pgexperts
 
+
+
+### Avaliar performance de sql postgres
+
+O PostgreSQL dá um relatório completo da execução da query.
+Para vê-lo execute a consulta assim:
+
+EXPLAIN ANALYSE SELECT * FROM foo;
+
+                       QUERY PLAN
+---------------------------------------------------------
+"Seq Scan on foo  (cost=0.00..2.62 rows=62 width=226) (actual time=0.011..0.020 rows=62 loops=1)"
+"Total runtime: 0.059 ms"
+
+Dependendo da complexidade da consulta, o resultado fica bem difícil de entender.
+
+Colando o resultado neste site: 
+
 https://explain.depesz.com/
+
+fica mais fácil de entender. 
+Ele deixa de um jeito mais fácil de ler, destaca os pontos críticos e dá algumas estatísticas do relatório mais resumidas e legíveis.
+
+Alguns exemplos de análises de sqls Exemplos-depesz
+https://explain.depesz.com/history
+
+
+
 
 https://pgbadger.darold.net/
 
