@@ -1,10 +1,10 @@
 
-# Executar comando sql pelo terminal
+## Executar comando sql pelo terminal
 ```
 psql --host=$IP --port=$PORTA --username=$USUARIO --dbname=$NOME_BASE --no-password --command="$COMANDO_SQL"
 ```
 
-# Info
+## Info
 ```
 --'PostgreSQL Version'
 SELECT
@@ -66,7 +66,7 @@ ORDER BY
 ```
   
   
-# show parameters
+## show parameters
 
 ```
 SHOW config_file;
@@ -76,7 +76,7 @@ SELECT name, setting FROM pg_settings;
 show all;
 ```
 
-# databases by size descending
+## databases by size descending
 ```
 SELECT
   datname,
@@ -87,7 +87,7 @@ ORDER
   BY pg_database_size(datname) DESC;
 ```
 
-# Running queries
+## Running queries
 ```
 SELECT
   pid,
@@ -106,7 +106,7 @@ ORDER BY
 ```
   
 
-# Lists queries blocked along with the pids of those holding the locks blocking them
+## Lists queries blocked along with the pids of those holding the locks blocking them
 ```
 -- Requires PostgreSQL >= 9.6
 SELECT
@@ -120,7 +120,7 @@ WHERE
   cardinality(pg_blocking_pids(pid)) > 0;
 ```
 
-# Indexes Cache-hit Ratio (should be closer to 1, eg. 0.99)
+## Indexes Cache-hit Ratio (should be closer to 1, eg. 0.99)
 ```
 SELECT
   SUM(idx_blks_read) AS idx_blks_read,
@@ -133,7 +133,7 @@ FROM
 ```
 
 
-# Locks
+## Locks
 ```
 SELECT
   t.schemaname,
@@ -164,7 +164,7 @@ WHERE
 ```
 
 
-# Locks Blocked
+## Locks Blocked
 ```
 SELECT
   blocked_locks.pid         AS blocked_pid,
@@ -201,7 +201,7 @@ WHERE
   NOT blocked_locks.granted;
 ```
   
-# SLOW: queries currently executing that have taken over 30 secs
+## SLOW: queries currently executing that have taken over 30 secs
 ```
 -- Requires 9.2 <= PostgreSQL <= 9.5
 SELECT
