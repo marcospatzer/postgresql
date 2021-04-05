@@ -4,6 +4,14 @@ https://github.com/pgexperts
 
 
 
+
+# Executar comando sql pelo terminal (Postgres)
+```
+psql --host=$IP --port=$PORTA --username=$USUARIO --dbname=$NOME_BASE --no-password --command="$COMANDO_SQL"
+```
+
+
+
 ### Avaliar performance de sql postgres
 
 O PostgreSQL dá um relatório completo da execução da query.
