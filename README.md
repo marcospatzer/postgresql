@@ -5,10 +5,21 @@ https://github.com/pgexperts
 
 
 
-# Executar comando sql pelo terminal (Postgres)
+# Executar comando sql pelo terminal
 ```
 psql --host=$IP --port=$PORTA --username=$USUARIO --dbname=$NOME_BASE --no-password --command="$COMANDO_SQL"
 ```
+
+# Exibir todos os parâmetros de runtime
+
+```
+SHOW config_file;
+
+SELECT name, setting FROM pg_settings;
+
+show all;
+```
+
 
 # Script
 ```
@@ -34,7 +45,7 @@ END
 $$;
 ```
 
-# Avaliar performance de sql postgres
+# EXPLAIN
 
 O PostgreSQL dá um relatório completo da execução da query.
 Para vê-lo execute a consulta assim:
