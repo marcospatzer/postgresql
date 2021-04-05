@@ -12,11 +12,12 @@ psql --host=$IP --port=$PORTA --username=$USUARIO --dbname=$NOME_BASE --no-passw
 
 
 
-### Avaliar performance de sql postgres
+# Avaliar performance de sql postgres
 
 O PostgreSQL dá um relatório completo da execução da query.
 Para vê-lo execute a consulta assim:
 
+```
 EXPLAIN ANALYSE SELECT * FROM foo;
 
                        QUERY PLAN
@@ -24,6 +25,7 @@ EXPLAIN ANALYSE SELECT * FROM foo;
 "Seq Scan on foo  (cost=0.00..2.62 rows=62 width=226) (actual time=0.011..0.020 rows=62 loops=1)"
 "Total runtime: 0.059 ms"
 
+```
 Dependendo da complexidade da consulta, o resultado fica bem difícil de entender.
 
 Colando o resultado neste site: 
@@ -37,7 +39,9 @@ Alguns exemplos de análises de sqls Exemplos-depesz
 https://explain.depesz.com/history
 
 
-## Comando Execute para Dinamismo no Postgresql
+
+
+# Comando Execute para Dinamismo no Postgresql
 Basicamente: Usar sql e concatenação de texto para construir outras sqls, e então executá-las no banco com o auxílio da função EXECUTE 
 (disponível apenas dentro de function's ou procedure's).
 
