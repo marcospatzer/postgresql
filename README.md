@@ -320,8 +320,12 @@ $$;
 
 
 
+## database ready only
+```
+ALTER DATABASE db_teste
+  SET default_transaction_read_only = 'off';
 
-
+```
 
 ## function EXECUTE  (macrosubistituição)
 
