@@ -402,4 +402,6 @@ https://pgtune.leopard.in.ua/#/
 
 https://github.com/jfcoz/postgresqltuner
 
+https://github.com/percona/pg_stat_monitor
+
 
