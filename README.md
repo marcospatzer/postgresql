@@ -82,6 +82,12 @@ SELECT name, setting FROM pg_settings;
 show all;
 ```
 
+## Grant
+```
+ALTER DEFAULT PRIVILEGES IN SCHEMA organization GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO readwrite;
+ALTER DEFAULT PRIVILEGES IN SCHEMA organization GRANT USAGE ON SEQUENCES TO readwrite;
+```
+
 ## databases by size descending
 ```
 SELECT
