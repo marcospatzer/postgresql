@@ -1,0 +1,5 @@
+select b.relname, a.tgname, a.tgenabled
+  from pg_trigger a, pg_class b
+where a.tgenabled = 'D'
+  and a.tgisinternal is FALSE
+  and b.oid = a.tgrelid   
