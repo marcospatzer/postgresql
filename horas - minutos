@@ -1,0 +1,360 @@
+
+CREATE OR REPLACE FUNCTION public.prc_retona_horas (
+  p_tipo varchar,
+  p_colaborador bigint,
+  p_data_in date,
+  p_data_fi date
+)
+RETURNS varchar AS
+$body$
+declare
+
+x0            record;
+x1            record;
+x2            record;
+
+v_retorno     varchar(5);
+v_trabalhadas time;
+v_minutos     integer;
+v_extra       integer;
+v_falta       integer;
+v_saldo       integer;
+
+begin
+  v_retorno := '00:00';
+  
+  v_minutos := 0;
+  v_extra   := 0;
+  v_falta   := 0;
+  v_trabalhadas := null;
+
+  for x0 in (select a.data, 
+                    c.carga_diaria, 
+                    a.data+cast(c.entrada1 as time) entrada1,
+                    a.data+cast(c.saida1 as time) saida1, 
+                    a.data+cast(c.entrada2 as time) entrada2,
+                    a.data+cast(c.saida2 as time) saida2 
+              from tbponto a, tbcolaborador b, tbturno c
+             where a.id_colaborador = p_colaborador
+               and a.data >= p_data_in
+               and a.data <= p_data_fi
+               and b.id = a.id_colaborador
+               and c.id_turno = b.id_turno
+          group by a.data, 
+                   c.carga_diaria, 
+                   a.data+cast(c.entrada1 as time),
+                   a.data+cast(c.saida1 as time), 
+                   a.data+cast(c.entrada2 as time),
+                   a.data+cast(c.saida2 as time)             
+          order by a.data asc)
+  loop
+  
+      for x1 in (select a.entrada, a.saida,                  
+                        a.saida-a.entrada as saldo
+                   from tbponto a, tbcolaborador b, tbturno c
+                  where a.id_colaborador = p_colaborador
+                    and a.data = x0.data
+                    and b.id = a.id_colaborador
+                    and c.id_turno = b.id_turno
+               order by a.entrada asc limit 1)
+      loop
+        -- TRABALHADAS
+        if v_trabalhadas is null then
+           v_trabalhadas := x1.saldo;
+        else
+           v_trabalhadas := v_trabalhadas + x1.saldo;
+        end if;
+        
+        -- ENTRADA:
+        v_minutos := EXTRACT(MINUTES FROM x1.entrada-x0.entrada1);
+
+        if v_minutos < 5 then
+           v_extra := v_extra + (v_minutos*-1); 
+        end if;
+        if v_minutos > 5 then
+           v_falta := v_falta + v_minutos; 
+        end if;        
+        
+        -- SAIDA:
+        v_minutos := EXTRACT(MINUTES FROM x1.saida-x0.saida1);
+
+        if v_minutos > 5 then
+           v_extra := v_extra + v_minutos; 
+        end if;
+        if v_minutos < 5 then
+           v_falta := v_falta + (v_minutos*-1); 
+        end if;            
+           
+      end loop;
+  
+      for x2 in (select a.entrada, a.saida,                  
+                        a.saida-a.entrada as saldo
+                   from tbponto a, tbcolaborador b, tbturno c
+                  where a.id_colaborador = p_colaborador
+                    and a.data = x0.data
+                    and b.id = a.id_colaborador
+                    and c.id_turno = b.id_turno
+               order by a.entrada asc limit 1 offset 1)
+      loop
+        -- TRABALHADAS
+        if v_trabalhadas is null then
+           v_trabalhadas := x2.saldo;
+        else
+           v_trabalhadas := v_trabalhadas + x2.saldo;
+        end if;
+        
+        -- ENTRADA:
+        v_minutos := EXTRACT(MINUTES FROM x2.entrada-x0.entrada2);
+
+        if v_minutos < 5 then
+           v_extra := v_extra + (v_minutos*-1); 
+        end if;
+        if v_minutos > 5 then
+           v_falta := v_falta + v_minutos; 
+        end if;        
+        
+        -- SAIDA:        
+        v_minutos := EXTRACT(MINUTES FROM x2.saida-x0.saida2);
+
+        if v_minutos > 5 then
+           v_extra := v_extra + v_minutos;
+        end if;
+        if v_minutos < 5 then
+           v_falta := v_falta + (v_minutos*-1); 
+        end if;
+      end loop;        
+    
+  end loop;
+
+
+  if p_tipo = 'TR' then
+    -- v_retorno := cast(EXTRACT(HOURS FROM v_trabalhadas) ||':'|| EXTRACT(MINUTES FROM v_trabalhadas) as varchar);
+     v_retorno := cast(lpad(cast(EXTRACT(HOURS FROM v_trabalhadas)as varchar),2,'0') ||':'|| 
+                       lpad(cast(EXTRACT(MINUTES FROM v_trabalhadas)as varchar),2,'0') as varchar);
+  end if;
+  if p_tipo = 'FA' then
+     if v_falta < 0 then
+        v_falta := (v_falta*-1); 
+     end if;
+     v_retorno := cast(lpad(cast(date_part('hours',interval '1 minute' * v_falta)as varchar),2,'0') ||':'|| 
+                       lpad(cast(date_part('minutes',interval '1 minute' * v_falta)as varchar),2,'0') as varchar);
+  end if;
+  if p_tipo = 'EX' then
+     if v_extra < 0 then
+        v_extra := (v_extra*-1); 
+     end if;  
+     v_retorno := cast(lpad(cast(date_part('hours',interval '1 minute' * v_extra)as varchar),2,'0') ||':'|| 
+                       lpad(cast(date_part('minutes',interval '1 minute' * v_extra)as varchar),2,'0') as varchar);
+  end if;
+  if p_tipo = 'SL' then
+     v_saldo := v_extra-v_falta;
+     if v_saldo < 0 then
+        v_saldo := v_saldo * -1;
+     end if;
+     v_retorno := cast(lpad(cast(date_part('hours',interval '1 minute' * v_saldo)as varchar),2,'0') ||':'|| 
+                       lpad(cast(date_part('minutes',interval '1 minute' * v_saldo)as varchar),2,'0') as varchar);
+  end if;  
+  
+  return v_retorno;
+end;
+$body$
+LANGUAGE 'plpgsql'
+VOLATILE
+CALLED ON NULL INPUT
+SECURITY INVOKER
+COST 100;
+
+
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+CREATE OR REPLACE FUNCTION public.prc_cartao_ponto (
+  p_colaborador bigint,
+  p_data_inicial date,
+  p_data_final date
+)
+RETURNS void AS
+$body$
+DECLARE
+
+x0         			record;
+x1         			record;
+x2      			record;
+v_dia               VARCHAR(03);
+v_ent1              VARCHAR(05);
+v_sai1              VARCHAR(05);
+v_ent2              VARCHAR(05);
+v_sai2              VARCHAR(05);
+
+v_hrtb              VARCHAR(05);
+v_falt              VARCHAR(05);
+v_extr              VARCHAR(05);
+v_sald              VARCHAR(05);
+v_carg              VARCHAR(05);
+v_abon              VARCHAR(05);
+
+v_tot_hrtb          integer;
+v_tot_falt          integer;
+v_tot_extr          integer;
+v_tot_sald          integer;
+v_tot_carg          integer;
+v_tot_abon          integer;
+
+BEGIN
+
+  create TEMPORARY table IF NOT EXISTS tb_cartao_ponto(
+          data DATE,
+          data_extenso VArCHAR(30),
+          ent1 VARCHAR(05),
+          sai1 VARCHAR(05),
+          ent2 VARCHAR(05),
+          sai2 VARCHAR(05),
+          hrtb VARCHAR(05),
+          falt VARCHAR(05),
+          extr VARCHAR(05),
+          sald VARCHAR(05),
+          carg VARCHAR(05),
+          just VARCHAR(20),
+          abon VARCHAR(05)
+    );
+  delete from tb_cartao_ponto;
+  
+  create TEMPORARY table IF NOT EXISTS tb_cartao_ponto_total(
+          hrtb VARCHAR(05),
+          falt VARCHAR(05),
+          extr VARCHAR(05),
+          sald VARCHAR(05),
+          carg VARCHAR(05),
+          abon VARCHAR(05)
+    );  
+  delete from tb_cartao_ponto_total;
+
+
+  v_tot_hrtb := 0;
+  v_tot_falt := 0;
+  v_tot_extr := 0;
+  v_tot_sald := 0;
+  v_tot_carg := 0;
+  v_tot_abon := 0;
+
+  for x0 in (SELECT date_trunc('day', dd):: date as data
+              FROM generate_series (p_data_inicial, p_data_final, '1 day'::interval) dd)
+  loop
+    v_dia := CASE EXTRACT( DOW FROM x0.data) 
+             WHEN 0 THEN 'Dom'
+             WHEN 1 THEN 'Seg'
+             WHEN 2 THEN 'Ter'
+             WHEN 3 THEN 'Qua'
+             WHEN 4 THEN 'Qui'
+             WHEN 5 THEN 'Sex'
+             WHEN 6 THEN 'Sab'
+    END;
+    
+    v_ent1 := '00:00'; 
+    v_sai1 := '00:00'; 
+    v_carg := '00:00'; 
+
+    -- entrada 1 / saida 1
+    for x1 in (select a.entrada, a.saida, c.carga_diaria
+                 from tbponto a, tbcolaborador b, tbturno c
+                where a.id_colaborador = p_colaborador
+                  and a.data = x0.data
+                  and b.id = a.id_colaborador
+                  and c.id_turno = b.id_turno
+             order by a.entrada asc limit 1)
+    loop
+      v_ent1 := TO_CHAR(x1.entrada, 'HH24:MI');
+      v_sai1 := TO_CHAR(x1.saida  , 'HH24:MI');
+      v_carg := x1.carga_diaria;
+    end loop;    
+    
+    v_ent2 := '00:00'; 
+    v_sai2 := '00:00';     
+    -- entrada 2 / saida 2
+    for x2 in (select a.entrada, a.saida
+                 from tbponto a, tbcolaborador b, tbturno c
+                where a.id_colaborador = p_colaborador
+                  and a.data = x0.data
+                  and b.id = a.id_colaborador
+                  and c.id_turno = b.id_turno
+             order by a.entrada asc limit 1 offset 1)
+    loop
+      v_ent2 := TO_CHAR(x2.entrada, 'HH24:MI');
+      v_sai2 := TO_CHAR(x2.saida  , 'HH24:MI');
+    end loop;    
+    
+    
+    v_hrtb := prc_retona_horas('TR',p_colaborador,x0.data,x0.data);
+    v_falt := prc_retona_horas('FA',p_colaborador,x0.data,x0.data);
+    v_extr := prc_retona_horas('EX',p_colaborador,x0.data,x0.data);
+    v_sald := prc_retona_horas('SL',p_colaborador,x0.data,x0.data);
+    v_abon := '00:00';
+
+    insert into tb_cartao_ponto (data,
+                                 data_extenso,
+                                 ent1,
+                                 sai1,
+                                 ent2,
+                                 sai2,
+                                 hrtb,
+                                 falt,
+                                 extr,
+                                 sald,
+                                 carg,
+                                 just,
+                                 abon)
+                         values (x0.data,                                 
+                                 TO_CHAR(x0.data,'DD/MM/YYYY')||' - '||v_dia,
+                                 
+                                 v_ent1,
+                                 v_sai1,
+                                 v_ent2,
+                                 v_sai2,
+                                 
+                                 v_hrtb,
+                                 v_falt,
+                                 v_extr,
+                                 v_sald,
+                                 v_carg,
+                                 '',
+                                 v_abon);
+             
+      v_tot_hrtb := v_tot_hrtb + cast(substr(v_hrtb,1,2) as integer)*60 + cast(substr(v_hrtb,4,2) as integer);
+      v_tot_falt := v_tot_falt + cast(substr(v_falt,1,2) as integer)*60 + cast(substr(v_falt,4,2) as integer);
+      v_tot_extr := v_tot_extr + cast(substr(v_extr,1,2) as integer)*60 + cast(substr(v_extr,4,2) as integer);
+      v_tot_sald := v_tot_sald + cast(substr(v_sald,1,2) as integer)*60 + cast(substr(v_sald,4,2) as integer);
+      v_tot_carg := v_tot_carg + cast(substr(v_carg,1,2) as integer)*60 + cast(substr(v_carg,4,2) as integer);
+      v_tot_abon := v_tot_abon + cast(substr(v_abon,1,2) as integer)*60 + cast(substr(v_abon,4,2) as integer);
+  end loop;
+  
+
+  insert into tb_cartao_ponto_total (hrtb,
+                                     falt,
+                                     extr,
+                                     sald,
+                                     carg,
+                                     abon) 
+                             values (
+                                     cast(lpad(cast(date_part('hours',interval '1 minute' * v_tot_hrtb)as varchar),2,'0') ||':'|| 
+                                          lpad(cast(date_part('minutes',interval '1 minute' * v_tot_hrtb)as varchar),2,'0') as varchar),
+                                     cast(lpad(cast(date_part('hours',interval '1 minute' * v_tot_falt)as varchar),2,'0') ||':'|| 
+                                          lpad(cast(date_part('minutes',interval '1 minute' * v_tot_falt)as varchar),2,'0') as varchar),
+                                     cast(lpad(cast(date_part('hours',interval '1 minute' * v_tot_extr)as varchar),2,'0') ||':'|| 
+                                          lpad(cast(date_part('minutes',interval '1 minute' * v_tot_extr)as varchar),2,'0') as varchar),
+                                     cast(lpad(cast(date_part('hours',interval '1 minute' * v_tot_sald)as varchar),2,'0') ||':'|| 
+                                          lpad(cast(date_part('minutes',interval '1 minute' * v_tot_sald)as varchar),2,'0') as varchar),
+                                     cast(lpad(cast(date_part('hours',interval '1 minute' * v_tot_carg)as varchar),2,'0') ||':'|| 
+                                          lpad(cast(date_part('minutes',interval '1 minute' * v_tot_carg)as varchar),2,'0') as varchar),
+                                     cast(lpad(cast(date_part('hours',interval '1 minute' * v_tot_abon)as varchar),2,'0') ||':'|| 
+                                          lpad(cast(date_part('minutes',interval '1 minute' * v_tot_abon)as varchar),2,'0') as varchar)
+                                    );
+  RETURN;
+END;
+$body$
+LANGUAGE 'plpgsql'
+VOLATILE
+CALLED ON NULL INPUT
+SECURITY INVOKER
+COST 100;
+
